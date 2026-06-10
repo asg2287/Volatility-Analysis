@@ -16,7 +16,7 @@
 #    - Scroll down to SECTION 5 at the very bottom of this script.
 #    - Uncomment the specific component you wish to analyze.
 #    - Ensure all other component blocks remain commented out (with a # symbol).
-#    - Run the entire script to export the respective figures.
+#    - Run the entire script to export the respective figures and raw CSV matrix.
 # ==============================================================================
 
 rm(list = ls())
@@ -206,6 +206,27 @@ generate_component_analysis <- function(component_code, component_full_name, exc
     theme(plot.title = element_text(face = "bold", size = 11), legend.position = "right")
   
   ggsave(file.path(output_directory, sprintf("%sfigure5.pdf", component_code)), plot = fig_top20, width = 8, height = 4.5)
+
+  # --- AUTOMATIC RAW DATA EXTRACTION ENGINE ---
+  # Reshapes long results into a clean Chapter (Rows) x Character (Columns) spreadsheet matrix
+  mahalanobis_matrix <- reshape(
+    data = as.data.frame(timeline_base[, c("Chapter", "Character", "Distance")]), 
+    idvar = "Chapter", 
+    timevar = "Character", 
+    direction = "wide"
+  )
+  
+  # Clean up formatting artifact prefixes from headers
+  colnames(mahalanobis_matrix) <- gsub("Distance.", "", colnames(mahalanobis_matrix))
+  
+  # Enforce row sequence sorting by sequential chapter order 1-61
+  mahalanobis_matrix <- mahalanobis_matrix[order(mahalanobis_matrix$Chapter), ]
+  
+  # Write file output dynamically to current component environment directory
+  csv_file_name <- sprintf("mahalanobis_matrix_Component_%s.csv", component_code)
+  write.csv(mahalanobis_matrix, file = file.path(output_directory, csv_file_name), row.names = FALSE)
+  
+  message(sprintf("Data extraction baseline achieved. Matrix written to: %s", csv_file_name))
 }
 
 # ==============================================================================
