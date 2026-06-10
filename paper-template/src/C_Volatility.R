@@ -1,22 +1,6 @@
 # ==============================================================================
 # DIGITAL HUMANITIES NOVEL ANALYSIS PIPELINE: ENGINE RUNTIME
-# FOCUS COMPONENT: COMPONENT C (Direct Character Communication)
-# ==============================================================================
-# OPERATIONAL DIRECTIONS & SETUP INSTRUCTIONS:
-#
-# 1. APPLICATION ENVIRONMENT DEPLOYMENT:
-#    - Download and install R from CRAN (https://cran.r-project.org/)
-#    - Download and install RStudio Desktop (https://posit.co/download/)
-#
-# 2. LOCAL FILE SYSTEM STANDARDIZATION:
-#    - Create a folder directly on your Desktop named: Pride and Prejudice
-#    - Place your tracking dataset inside that folder. 
-#    - Ensure the file is named exactly: Pride and Prejudice, Summer 2026.xlsx
-#
-# 3. PIPELINE EXECUTION:
-#    - Open this script in RStudio.
-#    - Execute all lines (Cmd/Ctrl + A, then Cmd/Ctrl + Enter).
-#    - The script automatically processes Component C and exports your prefixed PDFs.
+# FOCUS COMPONENT: COMPONENT C (Direct Character Communication) - FORCE WRITE V4.1
 # ==============================================================================
 
 rm(list = ls())
@@ -28,19 +12,16 @@ for (pkg in required_packages) {
   library(pkg, character.only = TRUE)
 }
 
-# 2. Dynamic Path Engineering -------------------------------------------------
-desktop_path <- file.path(Sys.getenv("HOME"), "Desktop")
+# 2. Hardcoded System Paths ---------------------------------------------------
+# This explicitly targets the universal Mac User Desktop directory path
+username <- Sys.info()[["user"]]
+desktop_path <- paste0("/Users/", username, "/Desktop")
 target_book_folder <- "Pride and Prejudice"
 target_excel_name <- "Pride and Prejudice, Summer 2026.xlsx"
-
 excel_file_path <- file.path(desktop_path, target_book_folder, target_excel_name)
 
-# Fail-Safe File System Gatekeeper
 if (!file.exists(excel_file_path)) {
-  stop(sprintf(
-    "\n\n[CRITICAL ERROR: ASSET NOT FOUND]\nTo run this script, please follow these steps:\n1. Create a folder on your Desktop named exactly: '%s'\n2. Move your Excel file into that folder.\n3. Verify the file is named exactly: '%s'\nCurrent expected path: %s\n\n",
-    target_book_folder, target_excel_name, excel_file_path
-  ))
+  stop(sprintf("\n\n[CRITICAL ERROR] Excel file not found at: %s\n", excel_file_path))
 }
 
 # 3. Character Cohort Definitions --------------------------------------------
@@ -56,12 +37,10 @@ characters_47 <- c(
   "Darcy", "Mr. Darcy", "Colonel Forster", "Colonel Fitzwilliam", "Charlotte Lucas", 
   "Captain Carter", "Bingley"
 )
-
 characters_55 <- c(characters_47, paste0("Supporting_Cast_", 1:8))
-
 heatmap_characters <- c(
   "Wickham Sr.", "Wickham", "Sir William Lucas", "Mrs. Reynolds", "Mrs. Philips",
-  "Mrs. Hurst", "Mrs. Gardiner", "Mrs Bennet", "Mrs. Annesley", "Mr. Jones",
+  "Mrs. Hurst", "Mrs. Gardiner", "Mrs. Bennet", "Mrs. Annesley", "Mr. Jones",
   "Mr. Hurst", "Mr. Gardiner", "Mr. Denny", "Mr. Darcy", "Mr. Collins",
   "Mr. Bingley", "Mr. Bennet", "Miss de Bourgh", "Miss Darcy", "Miss Bingley",
   "Mary", "Maria Lucas", "Lydia", "Lady Catherine de Bourgh", "Kitty",
@@ -69,7 +48,7 @@ heatmap_characters <- c(
   "Charlotte Lucas"
 )
 
-# 4. Core Processing Engine ----------------------------------------------------
+# 4. Core Processing and Aggregation Function ---------------------------------
 generate_component_analysis <- function(component_code, component_full_name, excel_path, desktop_dir) {
   
   message(sprintf("Processing System: %s (%s)", component_full_name, component_code))
@@ -109,7 +88,7 @@ generate_component_analysis <- function(component_code, component_full_name, exc
       subtitle = sprintf("Overall Structural Deviations by Narrative Progression across Volumes (%s)", component_code),
       x = "Continuous Timeline (Chapters 1-61)", y = "Mahalanobis System Distance"
     ) +
-    theme_minimal() +
+    theme_minimal() + 
     theme(legend.position = "right", plot.title = element_text(face = "bold"))
 
   ggsave(file.path(output_directory, sprintf("%sfigure1.pdf", component_code)), plot = fig_figure1, width = 11, height = 5.5)
@@ -190,6 +169,32 @@ generate_component_analysis <- function(component_code, component_full_name, exc
     theme(plot.title = element_text(face = "bold", size = 11), legend.position = "right")
   
   ggsave(file.path(output_directory, sprintf("%sfigure5.pdf", component_code)), plot = fig_top20, width = 8, height = 4.5)
+
+  # =========================================================================
+  # EMERGENCY RE-ENGINEERED EXTRACTION ENGINE (ZERO TRUST FRAMEWORK)
+  # =========================================================================
+  chaps <- unique(timeline_base$Chapter)
+  chars <- sort(unique(timeline_base$Character))
+  
+  raw_matrix <- matrix(0, nrow = length(chaps), ncol = length(chars))
+  rownames(raw_matrix) <- chaps
+  colnames(raw_matrix) <- chars
+  
+  for(i in 1:nrow(timeline_base)) {
+    row_idx <- as.character(timeline_base$Chapter[i])
+    col_idx <- timeline_base$Character[i]
+    raw_matrix[row_idx, col_idx] <- timeline_base$Distance[i]
+  }
+  
+  final_csv_output <- data.frame(Chapter = as.numeric(rownames(raw_matrix)), raw_matrix)
+  
+  # CRITICAL ACTION: Write directly to the root Desktop folder, bypassing nested folder routing
+  csv_dest_path <- file.path(desktop_dir, sprintf("mahalanobis_matrix_Component_%s.csv", component_code))
+  write.csv(final_csv_output, file = csv_dest_path, row.names = FALSE)
+  
+  # Force a hard-coded alert verification dialog box onto your Mac screen
+  utils::winDialog(type = "ok", message = paste("File Written:", csv_dest_path))
+  cat(sprintf("\n\n!!! CRITICAL VERIFICATION: FILE IS LOCATED AT: %s !!!\n\n", csv_dest_path))
 }
 
 # 5. Runtime Target: Component C ----------------------------------------------
