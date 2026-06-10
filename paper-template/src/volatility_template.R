@@ -1,5 +1,5 @@
 # ==============================================================================
-# DIGITAL HUMANITIES NOVEL ANALYSIS MASTER PIPELINE: UNIVERSAL ENGINE
+# DIGITAL HUMANITIES NOVEL ANALYSIS MASTER PIPELINE: UNIVERSAL DEVICE ENGINE V6.0
 # ==============================================================================
 # OPERATIONAL DIRECTIONS & SETUP INSTRUCTIONS:
 #
@@ -22,23 +22,42 @@
 rm(list = ls())
 
 # 1. Initialization and Package Verification ---------------------------------
-required_packages <- c("tidyverse", "MASS", "cluster", "ggrepel", "reshape2", "readxl")
+required_packages <- c("tidyverse", "MASS", "cluster", "ggrepel", "reshape2", "readxl", "fs")
 for (pkg in required_packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg, quiet = TRUE)
   library(pkg, character.only = TRUE)
 }
 
-# 2. Dynamic Path Engineering -------------------------------------------------
-desktop_path <- file.path(Sys.getenv("HOME"), "Desktop")
+# 2. Agnostic Cross-Platform Path Engineering ---------------------------------
+# Dynamically establishes user home directory across Windows, macOS, and Linux
+home_path <- tryCatch({
+  fs::path_home()
+}, error = function(e) {
+  # Universal native fallback matrix if 'fs' allocation drops
+  if (.Platform$OS.type == "windows") {
+    Sys.getenv("USERPROFILE")
+  } else {
+    Sys.getenv("HOME")
+  }
+})
+
+# Scan the home directory safely to resolve case-insensitive Desktop variations
+home_contents <- list.files(home_path)
+desktop_dir_name <- home_contents[tolower(home_contents) == "desktop"][1]
+
+if (is.na(desktop_dir_name)) {
+  desktop_dir_name <- "Desktop" # Default structural fallback state
+}
+
+desktop_path <- file.path(home_path, desktop_dir_name)
 target_book_folder <- "Pride and Prejudice"
 target_excel_name <- "Pride and Prejudice, Summer 2026.xlsx"
-
 excel_file_path <- file.path(desktop_path, target_book_folder, target_excel_name)
 
-# Fail-Safe File System Gatekeeper
+# Universal System Gatekeeper
 if (!file.exists(excel_file_path)) {
   stop(sprintf(
-    "\n\n[CRITICAL ERROR: ASSET NOT FOUND]\nTo run this script, please follow these steps:\n1. Create a folder on your Desktop named exactly: '%s'\n2. Move your Excel file into that folder.\n3. Verify the file is named exactly: '%s'\nCurrent expected path: %s\n\n",
+    "\n\n[CRITICAL ERROR: ASSET NOT FOUND]\nTo run this script, please follow these steps:\n1. Create a folder on your Desktop named exactly: '%s'\n2. Move your Excel file into that folder.\n3. Verify the file is named exactly: '%s'\nCurrent resolved system path: %s\n\n",
     target_book_folder, target_excel_name, excel_file_path
   ))
 }
@@ -80,7 +99,7 @@ generate_component_analysis <- function(component_code, component_full_name, exc
   
   df <- read_excel(excel_path, sheet = "ALL INSTANCES")
   
-  # --- CRITICAL FIX: DYNAMIC COL MATCHING TO ELIMINATE INHERITANCE BUG ---
+  # --- DYNAMIC COL MATCHING TO ELIMINATE INHERITANCE BUG ---
   target_col <- intersect(colnames(df), c(component_code, sprintf("Component %s", component_code), sprintf("Component_%s", component_code)))
   if(length(target_col) == 0) {
     target_col <- colnames(df)[grep(sprintf("^%s$|%s", component_code, component_code), colnames(df))][1]
@@ -135,7 +154,7 @@ generate_component_analysis <- function(component_code, component_full_name, exc
     facet_grid(. ~ Volume, scales = "free_x", space = "free") +
     scale_color_gradient(low = "#1c2833", high = "#c0392b", name = "Total Scale Metric") +
     scale_size_continuous(range = c(1, 5.5), name = "Total Scale Metric") +
-    geom_text_repel(data = filter(timeline_base, Distance > 45 & Character %in% c("Elizabeth", "Darcy", "Mr. Darcy", "Wickham", "Mrs. Bennet")), 
+    geom_text_repel(data = filter(timeline_base, Distance > 45 & Character %in= c("Elizabeth", "Darcy", "Mr. Darcy", "Wickham", "Mrs. Bennet")), 
                     aes(label = Character), size = 3, fontface = "bold", color = "black", max.overlaps = 15) +
     labs(
       title = sprintf("Figure 2: Micro-Contextual Structural Outliers - Focus: %s", component_full_name),
@@ -186,7 +205,7 @@ generate_component_analysis <- function(component_code, component_full_name, exc
   
   ggsave(file.path(output_directory, sprintf("%sfigure4.pdf", component_code)), plot = fig_figure4, width = 7, height = 4.5)
   
-  # --- STEP E: Figure 5 (Top 20 Crises Profile - UNIQUE AGGREGATION HOTFIX) ---
+  # --- STEP E: Figure 5 (Top 20 Crises Profile) ---
   top_20_data <- timeline_base %>%
     group_by(Character) %>%
     summarise(CumulativeImpact = sum(Distance, na.rm = TRUE), .groups = 'drop') %>%
@@ -207,26 +226,30 @@ generate_component_analysis <- function(component_code, component_full_name, exc
   
   ggsave(file.path(output_directory, sprintf("%sfigure5.pdf", component_code)), plot = fig_top20, width = 8, height = 4.5)
 
-  # --- AUTOMATIC RAW DATA EXTRACTION ENGINE ---
-  # Reshapes long results into a clean Chapter (Rows) x Character (Columns) spreadsheet matrix
-  mahalanobis_matrix <- reshape(
-    data = as.data.frame(timeline_base[, c("Chapter", "Character", "Distance")]), 
-    idvar = "Chapter", 
-    timevar = "Character", 
-    direction = "wide"
-  )
+  # =========================================================================
+  # AGNOSTIC EXTRACTOR ENGINE (ZERO TRUST FRAMEWORK)
+  # =========================================================================
+  chaps <- unique(timeline_base$Chapter)
+  chars <- sort(unique(timeline_base$Character))
   
-  # Clean up formatting artifact prefixes from headers
-  colnames(mahalanobis_matrix) <- gsub("Distance.", "", colnames(mahalanobis_matrix))
+  raw_matrix <- matrix(0, nrow = length(chaps), ncol = length(chars))
+  rownames(raw_matrix) <- chaps
+  colnames(raw_matrix) <- chars
   
-  # Enforce row sequence sorting by sequential chapter order 1-61
-  mahalanobis_matrix <- mahalanobis_matrix[order(mahalanobis_matrix$Chapter), ]
+  for(i in 1:nrow(timeline_base)) {
+    row_idx <- as.character(timeline_base$Chapter[i])
+    col_idx <- timeline_base$Character[i]
+    raw_matrix[row_idx, col_idx] <- timeline_base$Distance[i]
+  }
   
-  # Write file output dynamically to current component environment directory
-  csv_file_name <- sprintf("mahalanobis_matrix_Component_%s.csv", component_code)
-  write.csv(mahalanobis_matrix, file = file.path(output_directory, csv_file_name), row.names = FALSE)
+  final_csv_output <- data.frame(Chapter = as.numeric(rownames(raw_matrix)), raw_matrix)
   
-  message(sprintf("Data extraction baseline achieved. Matrix written to: %s", csv_file_name))
+  # Writes cleanly to the active device's root desktop screen view workspace
+  csv_dest_path <- file.path(desktop_dir, sprintf("mahalanobis_matrix_Component_%s.csv", component_code))
+  write.csv(final_csv_output, file = csv_dest_path, row.names = FALSE)
+  
+  # Cross-platform safe command line message output log
+  message(paste("\n\n[SUCCESS] Matrix output compiled at target endpoint:", csv_dest_path))
 }
 
 # ==============================================================================
@@ -236,8 +259,8 @@ generate_component_analysis <- function(component_code, component_full_name, exc
 # block you intend to output. Keep all other blocks commented out.
 # ==============================================================================
 
-# --- OPTION 1: CHARACTER INTERIORITY ARCHITECTURE ---
-# generate_component_analysis("I", "Character Interiority Architecture", excel_file_path, desktop_path)
+# --- OPTION 1: CHARACTER INTERACTIONS ---
+# generate_component_analysis("I", "Character Interactions", excel_file_path, desktop_path)
 
 # --- OPTION 2: DISCUSSION OF CHARACTER SECTOR ---
 # generate_component_analysis("DC", "Discussion of Character by Others", excel_file_path, desktop_path)
